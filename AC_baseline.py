@@ -1,0 +1,172 @@
+import gym
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.distributions import Categorical
+import multiprocessing
+from sklearn.model_selection import ParameterGrid
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+
+# Hyperparameters
+learning_rate = 0.0002
+gamma = 0.98
+n_rollout = 10
+
+
+class ActorCritic_baseline(nn.Module):
+    def __init__(self,learning_rate):
+        super(ActorCritic_baseline, self).__init__()
+        self.data = []
+        #self.alpha = alpha
+        self.learn_rate = learning_rate
+        self.fc1 = nn.Linear(4, 256) #input
+        #actor
+        self.fc_pi = nn.Linear(256, 2)  # output:l or r
+        #critic
+        self.fc_v = nn.Linear(256, 1)  # out:one choice
+        self.optimizer = optim.Adam(self.parameters(), lr=self.learn_rate)
+        self.s_lst, self.a_lst, self.r_lst, self.s_prime_lst, self.done_lst = [],[],[],[],[]
+
+    def pi(self, x, softmax_dim=0):
+        x = F.relu(self.fc1(x))
+        x = self.fc_pi(x)
+        prob_policy = F.softmax(x, dim=softmax_dim)
+        return prob_policy
+
+    def v(self, x):
+        x = F.relu(self.fc1(x))
+        value = self.fc_v(x)
+        return value
+
+    def train_net(self,transition):
+        s, a, r, s_prime, done = transition
+        self.s_lst.append(s)
+        self.a_lst.append([a])
+        self.r_lst.append([r / 100.0])
+        self.s_prime_lst.append(s_prime)
+        # speeds up learning
+        done_mask = 0.0 if done else 1.0
+        self.done_lst.append([done_mask])
+        s_batch, a_batch, r_batch, s_prime_batch, done_batch = torch.tensor(self.s_lst, dtype=torch.float), torch.tensor(
+            self.a_lst), torch.tensor(self.r_lst, dtype=torch.float), torch.tensor(
+            self.s_prime_lst, dtype=torch.float), torch.tensor(self.done_lst, dtype=torch.float)
+
+        td_target = r_batch + gamma * self.v(s_prime_batch) * done_batch
+        delta = td_target - self.v(s_batch)
+        pi = self.pi(s_batch, softmax_dim=1)         #probabilities
+        pi_a = pi.gather(1, a_batch)
+        #output = loss(input, target)
+        #output.backward()
+        loss = -torch.log(pi_a) * delta.detach() + F.smooth_l1_loss(self.v(s_batch), td_target.detach())
+
+        #cross entropy - > softmax and negative log liklihood
+        #loss = (torch.log(1/pi[pi_a])) / 1
+        l = loss.mean()
+        #print(l)
+        self.optimizer.zero_grad()
+        loss.mean().backward()
+        self.optimizer.step()
+
+        self.s_lst, self.a_lst, self.r_lst, self.s_prime_lst, self.done_lst = [], [], [], [], []
+
+def plot(all_rewards,all_lengths,average_lengths):
+    # Plot results
+    smoothed_rewards = pd.Series.rolling(pd.Series(all_rewards), 10).mean()
+    smoothed_rewards = [elem for elem in smoothed_rewards]
+    plt.plot(all_rewards)
+    plt.plot(smoothed_rewards)
+    plt.plot()
+    plt.xlabel('Episode')
+    plt.ylabel('Reward')
+    plt.show()
+
+    plt.plot(all_lengths)
+    plt.plot(average_lengths)
+    plt.xlabel('Episode')
+    plt.ylabel('Episode Avergae length')
+    plt.show()
+
+# def evaluate_single(args):
+#     index, params = args
+#     print('Evaluating params: {}'.format(params))
+#     params = {**params, **fixed_params}
+#
+#     scores = []
+#     for i in range(N_RUNS):
+#         solver = qcartpole.QCartPoleSolver(**params)
+#         score = solver.run()
+#         scores.append(score)
+#
+#     score = np.mean(scores)
+#     print('Finished evaluating set {} with score of {}.'.format(index, score))
+#     return score
+#
+# def experiments():
+#
+#     grid_params = {
+#         'min_alpha': [0.1, 0.2, 0.5],
+#         'gamma': [1.0, 0.99, 0.9]
+#     }
+#
+#     fixed_params = {
+#         'quiet': True
+#     }
+#
+#     grid = list(ParameterGrid(grid_params))
+#     final_scores = np.zeros(len(grid))
+#
+#     print('About to evaluate {} parameter sets.'.format(len(grid)))
+#     pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+#     final_scores = pool.map(evaluate_single, list(enumerate(grid)))
+#
+#     print('Best parameter set was {} with score of {}'.format(grid[np.argmin(final_scores)], np.min(final_scores)))
+#     print('Worst parameter set was {} with score of {}'.format(grid[np.argmax(final_scores)], np.max(final_scores)))
+
+
+def AC_baseline(n_episodes,learning_rate):
+    env = gym.make('CartPole-v1')
+    model = ActorCritic_baseline(learning_rate=learning_rate)
+    print_interval = 20
+    score = 0.0
+    all_s = []
+    all_lengths = []
+    average_lengths = []
+    step = 0
+    score_2 = 0.0
+
+    for n_epi in range(n_episodes):
+        done = False
+        s = env.reset()
+        score = 0.0
+        step = 0
+        while not done:
+            step += 1
+            prob = model.pi(torch.from_numpy(s).float())
+            m = Categorical(prob)
+            a = m.sample().item()
+            s_prime, r, done, info = env.step(a)
+            # model.put_data((s, a, r, s_prime, done))
+
+            s = s_prime
+            score += 1
+            score_2 += r
+
+            if done:
+                all_s.append(score)
+                all_lengths.append(step)
+                average_lengths.append(np.mean(all_lengths[-10:]))
+                break
+
+            model.train_net((s, a, r, s_prime, done))
+
+            # implement threshold
+
+        if n_epi % print_interval == 0 and n_epi != 0:
+            print("# of episode :{}, avg score : {:.1f}".format(n_epi, score_2 / print_interval))
+            score_2 = 0.0
+    env.close()
+    #plot(all_s, all_lengths, average_lengths)
+    return all_s
