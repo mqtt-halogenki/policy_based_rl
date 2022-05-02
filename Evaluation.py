@@ -5,7 +5,7 @@ from scipy.signal import savgol_filter
 import seaborn as sns
 import pandas as pd
 import argparse
-from bootstrap_entropy import bootstrap
+from BS_nsteps2 import bootstrap
 from AC_baseline import AC_baseline
 
 #Source of the plotting code:A1
@@ -48,7 +48,7 @@ def average_over_repetitions(n_repetitions,n_episodes,smoothing_widnow,algo):
         if algo == "reinforce":
             rewards = REINFORCE_algorithm(n_episodes,learning_rate=0.02)
         elif algo == 'bootstrap':
-            rewards = bootstrap(n_episodes,learning_rate=learning_rate)
+            rewards = bootstrap(n_episodes)
         elif algo == 'ac_baseline':
             rewards = AC_baseline(n_episodes,learning_rate=learning_rate)
 
@@ -77,9 +77,9 @@ def get_comparison_plot():
     plot = LearningCurvePlot()
 
     n_episodes = 200
-    df1 = average_over_repetitions(30,n_episodes,21, algo="reinforce")
-    df2 = average_over_repetitions(30,n_episodes,21, algo="bootstrap")
-    df3 = average_over_repetitions(30,n_episodes,21, algo="ac_baseline")
+    df1 = average_over_repetitions(10,n_episodes,21, algo="reinforce")
+    df2 = average_over_repetitions(10,n_episodes,21, algo="bootstrap")
+    df3 = average_over_repetitions(10,n_episodes,21, algo="ac_baseline")
     bigdf = pd.concat([df1,df2,df3],ignore_index=True)
     bigdf.columns = ['episode','score','algorithm']
     bigdf.to_csv('data.csv',index=False)
