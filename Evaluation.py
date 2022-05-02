@@ -40,12 +40,13 @@ def smooth(y, window, poly=1):
 
 
 def average_over_repetitions(n_repetitions,n_episodes,smoothing_widnow,algo):
-    learning_rate = 0.02
+    learning_rate = 0.0001
 
     reward_results = np.empty([n_repetitions, n_episodes])  # Result array
     for rep in range(n_repetitions):
+        print("Repetition:", rep)
         if algo == "reinforce":
-            rewards = REINFORCE_algorithm(n_episodes,learning_rate=learning_rate)
+            rewards = REINFORCE_algorithm(n_episodes,learning_rate=0.02)
         elif algo == 'bootstrap':
             rewards = bootstrap(n_episodes,learning_rate=learning_rate)
         elif algo == 'ac_baseline':
@@ -75,11 +76,12 @@ def get_REINFORCE():
 def get_comparison_plot():
     plot = LearningCurvePlot()
 
-    n_episodes = 1000
-    df1 = average_over_repetitions(30,n_episodes,51, algo="reinforce")
-    df2 = average_over_repetitions(30,n_episodes,51, algo="bootstrap")
-    df3 = average_over_repetitions(30,n_episodes,51, algo="ac_baseline")
+    n_episodes = 200
+    df1 = average_over_repetitions(30,n_episodes,21, algo="reinforce")
+    df2 = average_over_repetitions(30,n_episodes,21, algo="bootstrap")
+    df3 = average_over_repetitions(30,n_episodes,21, algo="ac_baseline")
     bigdf = pd.concat([df1,df2,df3],ignore_index=True)
+    bigdf.columns = ['episode','score','algorithm']
     bigdf.to_csv('data.csv',index=False)
     plot.add_lines(bigdf)
     plot.save('algorithm_comparison.png')
@@ -88,8 +90,6 @@ def get_comparison_plot():
 #get_REINFORCE()
 get_comparison_plot()
 
-def get_plot_from_cv():
-    df = pd.read_csv('data.csv')
 
 
 

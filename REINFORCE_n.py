@@ -84,7 +84,7 @@ def REINFORCE_algorithm(num_episodes,learning_rate):
     #num of trace samples M
     for z in range(1):
         for ep in range(num_episodes):
-            print(ep)
+            #print(ep)
             for trace in range(0,2):
                 s = env.reset()
                 score = 0
