@@ -7,6 +7,7 @@ import pandas as pd
 import argparse
 from BS_nsteps2 import bootstrap
 from AC_baseline import AC_baseline
+from Bootstrapping_basesubtraction import Bootstrapping_basesubtraction
 
 #Source of the plotting code:A1
 class LearningCurvePlot:
@@ -48,9 +49,11 @@ def average_over_repetitions(n_repetitions,n_episodes,smoothing_widnow,algo):
         if algo == "reinforce":
             rewards = REINFORCE_algorithm(n_episodes,learning_rate=0.02)
         elif algo == 'bootstrap':
-            rewards = bootstrap(n_episodes)
+            rewards = bootstrap(n_episodes,learning_rate=0.001)
         elif algo == 'ac_baseline':
             rewards = AC_baseline(n_episodes,learning_rate=learning_rate)
+        elif algo == 'bootsub':
+            rewards = Bootstrapping_basesubtraction(n_episodes)
 
 
 
@@ -76,11 +79,12 @@ def get_REINFORCE():
 def get_comparison_plot():
     plot = LearningCurvePlot()
 
-    n_episodes = 200
+    n_episodes = 500
     df1 = average_over_repetitions(10,n_episodes,21, algo="reinforce")
     df2 = average_over_repetitions(10,n_episodes,21, algo="bootstrap")
     df3 = average_over_repetitions(10,n_episodes,21, algo="ac_baseline")
-    bigdf = pd.concat([df1,df2,df3],ignore_index=True)
+    df4 = average_over_repetitions(10,n_episodes,21,algo='bootsub')
+    bigdf = pd.concat([df1,df2,df3,df4],ignore_index=True)
     bigdf.columns = ['episode','score','algorithm']
     bigdf.to_csv('data.csv',index=False)
     plot.add_lines(bigdf)

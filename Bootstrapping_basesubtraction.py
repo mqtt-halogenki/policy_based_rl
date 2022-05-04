@@ -9,11 +9,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Categorical
-import matplotlib.pyplot as plt
 
 
-
-class BS(nn.Module):
+class Boot_basesub(nn.Module):
     def __init__(self,learning_rate) -> None:
         super().__init__()
 
@@ -93,9 +91,14 @@ class BS(nn.Module):
 
         return Q_n
 
-    def train(self,gamma,eta,n_depth):
+    def train(self,gamma,eta,n_depth,is_entropy):
+        '''
+        add the subtraction for n_strap, which is also the Advantage function.
+        '''
         s, a, r, s_, done = self.make_batch()
         Q = self.n_strap(s=s,r=r,gamma=gamma, n=n_depth)
+
+        A_n = Q - self.v(s)
         
         # value update
         loss_v = F.smooth_l1_loss(self.v(s), Q.detach())
@@ -103,8 +106,11 @@ class BS(nn.Module):
         # policy update
         pi = self.pi(s, softmax_dim=1)
         pi_a = pi.gather(1,a)
-
-        loss_p = Q.detach() * (-torch.log(pi_a))
+        loss_p = A_n.detach() * (-torch.log(pi_a))
+        
+        if is_entropy:
+            entropy = Categorical(pi_a).entropy()
+            loss_p = A_n.detach() * (-torch.log(pi_a)) + eta * entropy
 
         loss = loss_v + loss_p
         loss.mean().backward()
@@ -112,7 +118,7 @@ class BS(nn.Module):
         self.optimizer.zero_grad()
 
 
-def bootstrap(MAX_EPISODES = 10000,n_depth = 5,gamma=0.98,learning_rate=0.001,eta = 0.98):
+def Bootstrapping_basesubtraction(MAX_EPISODES = 10000,n_depth = 10,gamma=0.98,learning_rate=0.001,eta = 0.98, is_entropy=False):
     '''
     main func
 
@@ -121,10 +127,11 @@ def bootstrap(MAX_EPISODES = 10000,n_depth = 5,gamma=0.98,learning_rate=0.001,et
     :param gamma: penalty value when calculating the cumulating rewards.
     :param learning_rate: for network optimization parameter
     :param eta: for entropy regularization
+    :param is_entropy: default false, if true add a regularization for policy update
     :return: reward
     '''
     env = gym.make('CartPole-v1')
-    ac = BS(learning_rate = learning_rate)
+    ac = Boot_basesub(learning_rate = learning_rate)
 
     flag_reward = 0.0
     total_reward = []
@@ -155,7 +162,7 @@ def bootstrap(MAX_EPISODES = 10000,n_depth = 5,gamma=0.98,learning_rate=0.001,et
                 if done:
                     break
             
-            ac.train(gamma=gamma,eta=eta,n_depth=n_depth)
+            ac.train(gamma=gamma,eta=eta,n_depth=n_depth,is_entropy = is_entropy)
         
         # reward for plotting
         total_reward.append(epi_reward)
@@ -167,9 +174,4 @@ def bootstrap(MAX_EPISODES = 10000,n_depth = 5,gamma=0.98,learning_rate=0.001,et
 
     env.close()
 
-    #fig,ax = plt.subplots()
-    #ax.plot(total_reward)
-    #plt.show()
     return total_reward
-#300,15,0.98,0.001
-#bootstrap(400,10,0.98,0.001)
