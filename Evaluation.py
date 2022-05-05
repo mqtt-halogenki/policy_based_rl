@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from REINFORCE_n  import REINFORCE_algorithm
+from REINFORCE_n  import reinforce
 from scipy.signal import savgol_filter
 import seaborn as sns
 import pandas as pd
@@ -46,13 +46,13 @@ def average_over_repetitions(n_repetitions,n_episodes,smoothing_widnow,algo):
     reward_results = np.empty([n_repetitions, n_episodes])  # Result array
     for rep in range(n_repetitions):
         print("Repetition:", rep)
-        if algo == "reinforce":
-            rewards = REINFORCE_algorithm(n_episodes,learning_rate=0.02)
-        elif algo == 'bootstrap':
+        if algo == "REINFORCE":
+            rewards = reinforce(n_episodes,learning_rate=0.02)
+        elif algo == 'AC Bootstrapping':
             rewards = bootstrap(n_episodes,learning_rate=0.001)
-        elif algo == 'ac_baseline':
+        elif algo == 'AC Baseline':
             rewards = AC_baseline(n_episodes,learning_rate=learning_rate)
-        elif algo == 'bootsub':
+        elif algo == "AC Baseline + Bootstrapping":
             rewards = Bootstrapping_basesubtraction(n_episodes)
 
 
@@ -69,8 +69,8 @@ def average_over_repetitions(n_repetitions,n_episodes,smoothing_widnow,algo):
 
 def get_REINFORCE():
     fig, ax = plt.subplots()
-    n_episodes = 300
-    df = average_over_repetitions(30,n_episodes,11,algo="reinforce")
+    n_episodes = 1000
+    df = average_over_repetitions(30,n_episodes,11,algo="REINFORCE")
     lp = sns.lineplot(data=df, x="episode", y="score")
     fig = lp.get_figure()
     fig.savefig("REINFORCE.png")
@@ -79,11 +79,11 @@ def get_REINFORCE():
 def get_comparison_plot():
     plot = LearningCurvePlot()
 
-    n_episodes = 500
-    df1 = average_over_repetitions(10,n_episodes,21, algo="reinforce")
-    df2 = average_over_repetitions(10,n_episodes,21, algo="bootstrap")
-    df3 = average_over_repetitions(10,n_episodes,21, algo="ac_baseline")
-    df4 = average_over_repetitions(10,n_episodes,21,algo='bootsub')
+    n_episodes = 1000
+    df1 = average_over_repetitions(30,n_episodes,51, algo="REINFORCE")
+    df2 = average_over_repetitions(30,n_episodes,51, algo="AC Bootstrapping")
+    df3 = average_over_repetitions(30,n_episodes,51, algo="AC Baseline")
+    df4 = average_over_repetitions(30,n_episodes,51,algo="AC Baseline + Bootstrapping")
     bigdf = pd.concat([df1,df2,df3,df4],ignore_index=True)
     bigdf.columns = ['episode','score','algorithm']
     bigdf.to_csv('data.csv',index=False)

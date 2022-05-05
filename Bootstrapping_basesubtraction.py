@@ -169,7 +169,7 @@ def Bootstrapping_basesubtraction(MAX_EPISODES = 10000,n_depth = 10,gamma=0.98,l
 
         # flag result
         if episode % 100 == 0 and episode != 0:
-            print(f"epidoes: {episode}, reward: {flag_reward/100.}")
+            #print(f"epidoes: {episode}, reward: {flag_reward/100.}")
             flag_reward = 0.0
 
     env.close()

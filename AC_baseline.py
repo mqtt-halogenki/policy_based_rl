@@ -163,7 +163,7 @@ def AC_baseline(n_episodes,learning_rate):
             if done:
 
                 all_s.append(score2)
-                print(score2)
+                #print(score2)
                 all_lengths.append(step)
                 average_lengths.append(np.mean(all_lengths[-10:]))
                 break
