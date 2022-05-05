@@ -86,13 +86,12 @@ def get_comparison_plot():
     df4 = average_over_repetitions(30,n_episodes,51,algo="AC Baseline + Bootstrapping")
     bigdf = pd.concat([df1,df2,df3,df4],ignore_index=True)
     bigdf.columns = ['episode','score','algorithm']
-    bigdf.to_csv('data.csv',index=False)
     plot.add_lines(bigdf)
     plot.save('algorithm_comparison.png')
 
 
-#get_REINFORCE()
-get_comparison_plot()
+get_REINFORCE()
+#get_comparison_plot()
 
 
 
